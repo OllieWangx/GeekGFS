@@ -1,5 +1,4 @@
 [master]
-block_size1 = 65536
 block_size = 65536
 replication = 2
 port = 30000
