@@ -1,27 +1,38 @@
+import atexit
+import threading
+import time
 from collections import Counter
 import rpyc
 import uuid
 import math
 import configparser
-import signal
 import pickle
 import sys
 import os
 from rpyc.utils.server import ThreadedServer
 
 
-def int_handler(signal, frame):
+@atexit.register
+def save(is_exit=True, save_period=30,is_First=False):
     """
-    用来检查退出时，及时保存服务器上的元数据
+    及时保存服务器上的元数据，同时在退出前自动保存
     主要存放两个映射表 文件名->chunk_id
-    :param signal:
-    :param frame:
+    :param is_First: 是否是首次执行 如果是 直接返回 这是防止一开始就执行保存人物
+    :param save_period: 定时保存周期 单位s
+    :param is_exit: 保存完是否退出
     :return:
     """
-    with open('./master/metadata', 'wb') as fp:
-        saved_data = (MasterService.exposed_Master.file_table, MasterService.exposed_Master.block_table)
-        pickle.dump(saved_data, fp)
-    sys.exit(0)
+    if not is_First:
+        with open('./master/metadata', 'wb') as fp:
+            saved_data = (MasterService.exposed_Master.file_table, MasterService.exposed_Master.block_table)
+            pickle.dump(saved_data, fp)
+        time_str = time.strftime('%Y:%m:%d %H:%M:%S', time.localtime(time.time()))
+        print(f"{time_str}:元数据保存成功")
+    if is_exit:
+        sys.exit(0)
+    else:
+        time.sleep(save_period)
+        save(False, save_period,False)
 
 
 def init():
@@ -31,6 +42,7 @@ def init():
     MasterService.exposed_Master.block_size = eval(conf.get('master', 'block_size'))
     MasterService.exposed_Master.replication = eval(conf.get('master', 'replication'))
     MasterService.exposed_Master.port = eval(conf.get('master', 'port'))
+    MasterService.exposed_Master.save_period = eval(conf.get('master', 'save_period'))
     sessions = conf.sections()
     for i in range(1, len(sessions)):  # pass master
         c = conf.get(sessions[i], 'ip')
@@ -49,6 +61,7 @@ class MasterService(rpyc.Service):
         block_size = 64  # default 64B
         replication = 2  # default 1
         port = 9700  # default 9700
+        save_period = 30  # 元数据写到磁盘周期
 
         def sort_chunks(self):
             """
@@ -121,9 +134,9 @@ class MasterService(rpyc.Service):
             for id in block_ids:
                 chunk_nos = self.__class__.block_table[id]
                 block_addresses.append([self.__class__.chunks[no] for no in chunk_nos])
-            return block_ids,block_addresses
+            return block_ids, block_addresses
 
-        def exposed_delete(self,filename,block_ids):
+        def exposed_delete(self, filename, block_ids):
             """
             删除文件的元数据
             :param filename: 文件名
@@ -144,9 +157,14 @@ class MasterService(rpyc.Service):
             """
             self.__class__.file_table[filename] += block_ids
 
+
 if __name__ == "__main__":
     init()
-    signal.signal(signal.SIGINT, int_handler)
-    t = ThreadedServer(MasterService, port=MasterService.exposed_Master.port)
+    # 启动元数据保存线程
+    saveThread = threading.Thread(name='saveThread', target=save,
+                                  args=(False, MasterService.exposed_Master.save_period,True), daemon=True)
+    saveThread.start()
+    # 开启远程服务
+    masterServerThread = ThreadedServer(MasterService, port=MasterService.exposed_Master.port)
     print(f"master启动成功,地址：localhost:{MasterService.exposed_Master.port}")
-    t.start()
+    masterServerThread.start()

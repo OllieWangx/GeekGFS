@@ -3,7 +3,6 @@ import random
 import time
 
 import rpyc
-import sys
 import os
 import logging
 
