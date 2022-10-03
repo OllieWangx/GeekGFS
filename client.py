@@ -52,10 +52,10 @@ class Client():
         :param saveFile: 目标文件 str
         :return:
         """
-        if self.master.exist(oriFile):
+        if self.master.exist(saveFile):
             LOG.info("该文件已存在，写入失败")
             return
-        size = os.path.getsize(oriFile)
+        size = os.path.getsize(saveFile)
         block_ids, block_addresses = self.master.allocate(size)
         block_size = self.master.get_block_size()
         with open(oriFile, 'rb') as fp:
