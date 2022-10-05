@@ -55,7 +55,7 @@ class Client():
         if self.master.exist(saveFile):
             LOG.info("该文件已存在，写入失败")
             return
-        size = os.path.getsize(saveFile)
+        size = os.path.getsize(oriFile)
         block_ids, block_addresses = self.master.allocate(size)
         block_size = self.master.get_block_size()
         with open(oriFile, 'rb') as fp:
@@ -167,6 +167,8 @@ if __name__ == "__main__":
             client.write(str_split[1], str_split[2])
         elif str_split[0] == 'get' and len(str_split) == 3:
             client.read(str_split[1], str_split[2])
+        elif str_split[0] == 'get' and len(str_split) == 2:
+            client.read(str_split[1], None)
         elif str_split[0] == 'append' and len(str_split) == 3:
             client.append(str_split[1], str_split[2])
         elif str_split[0] == 'exist' and len(str_split) == 2:

@@ -126,8 +126,8 @@ class MasterService(rpyc.Service):
             """
             返回文件名所在的blocks及其地址
             :param filename: 删除文件名
-            :return block_ids:需要删除的chunk_id
-            :return block_addresses: 需要删除chunk在整个集群中服务器的位置
+            :return block_ids:对应的chunk_id
+            :return block_addresses: 对于chunk在整个集群中服务器的位置
             """
             block_ids = self.__class__.file_table[filename]
             block_addresses = []
